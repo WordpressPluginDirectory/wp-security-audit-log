@@ -1,12 +1,15 @@
 <?php
 /**
- * Widget Manager
+ * Class: Widget manager.
  *
- * Manager class for WSAL's WP Dashboard widget.
+ * Helper class to show the widget in dashboard area.
  *
- * @since   1.0.0
  * @package wsal
  */
+
+declare(strict_types=1);
+
+namespace WSAL\Helpers;
 
 use WSAL\Helpers\User_Utils;
 use WSAL\Helpers\Settings_Helper;
@@ -18,61 +21,61 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Widget Manager
- *
- * Plugin Widget used in the WordPress Dashboard.
- *
- * @package wsal
- */
-class WSAL_WidgetManager {
+if ( ! class_exists( '\WSAL\Helpers\Widget_Manager' ) ) {
 
 	/**
-	 * Instance of WpSecurityAuditLog.
+	 * Widget Manager
 	 *
-	 * @var WpSecurityAuditLog
-	 */
-	protected $plugin;
-
-	/**
-	 * Method: Constructor.
+	 * Plugin Widget used in the WordPress Dashboard.
 	 *
-	 * @param WpSecurityAuditLog $plugin - Instance of WpSecurityAuditLog.
+	 * @package wsal
 	 */
-	public function __construct( WpSecurityAuditLog $plugin ) {
-		$this->plugin = $plugin;
-		add_action( 'wp_dashboard_setup', array( $this, 'add_widgets' ) );
-	}
+	class Widget_Manager {
 
-	/**
-	 * Method: Add widgets.
-	 */
-	public function add_widgets() {
-		global $pagenow;
+		/**
+		 * Method: Constructor.
+		 *
+		 * @return void
+		 *
+		 * @since 5.0.0
+		 */
+		public static function init() {
+			add_action( 'wp_dashboard_setup', array( __CLASS__, 'add_widgets' ) );
+		}
 
-		if (
-				! \WSAL\Helpers\Settings_Helper::get_boolean_option_value( 'disable-widgets' ) // If widget is enabled.
+		/**
+		 * Method: Add widgets.
+		 *
+		 * @since 5.0.0
+		 */
+		public static function add_widgets() {
+			global $pagenow;
+
+			if (
+				! Settings_Helper::get_boolean_option_value( 'disable-widgets' ) // If widget is enabled.
 				&& Settings_Helper::current_user_can( 'view' ) // If user has permission to view.
 				&& 'index.php' === $pagenow // If the current page is dashboard.
-		) {
-			wp_add_dashboard_widget(
-				'wsal',
-				esc_html__( 'Latest Events', 'wp-security-audit-log' ) . ' | WP Activity Log',
-				array( $this, 'render_widget' )
-			);
+			) {
+				wp_add_dashboard_widget(
+					'wsal',
+					esc_html__( 'Latest Events', 'wp-security-audit-log' ) . ' | WP Activity Log',
+					array( __CLASS__, 'render_widget' )
+				);
+			}
 		}
-	}
 
-	/**
-	 * Method: Render widget.
-	 */
-	public function render_widget() {
-		$results = (array) Alert_Manager::get_latest_events( $this->plugin->settings()->get_dashboard_widget_max_alerts(), true );
+		/**
+		 * Method: Render widget.
+		 *
+		 * @since 5.0.0
+		 */
+		public static function render_widget() {
+			$results = (array) Alert_Manager::get_latest_events( Settings_Helper::DASHBOARD_WIDGET_MAX_ALERTS, true );
 
-		?><div>
-		<?php if ( ! count( $results ) ) : ?>
+			?><div>
+			<?php if ( ! count( $results ) ) { ?>
 			<p><?php esc_html_e( 'No events found.', 'wp-security-audit-log' ); ?></p>
-		<?php else : ?>
+			<?php } else { ?>
 			<table class="wp-list-table widefat" cellspacing="0" cellpadding="0"
 				style="display: block; overflow-x: auto;">
 				<thead>
@@ -83,7 +86,7 @@ class WSAL_WidgetManager {
 				</thead>
 				<tbody>
 					<?php
-					$url = 'admin.php?page=' . $this->plugin->views->views[0]->get_safe_view_name();
+					$url = 'admin.php?page=' . View_Manager::get_views()[0]->get_safe_view_name();
 					foreach ( $results as $entry ) :
 						$event_meta = $entry['meta_values'];
 						$username   = User_Utils::get_username( $event_meta );
@@ -94,15 +97,16 @@ class WSAL_WidgetManager {
 							<td><?php echo ( $event_meta['EventType'] ) ? esc_html( $event_meta['EventType'] ) : '<i>unknown</i>'; ?></td>
 							<td>
 								<a href="<?php echo esc_url( $url ) . '#Event' . esc_attr( $entry['id'] ); ?>">
-									<?php echo wp_kses( Occurrences_Entity::get_alert_message( $entry, 'dashboard-widget' ), WpSecurityAuditLog::get_allowed_html_tags() ); ?>
+									<?php echo wp_kses( Occurrences_Entity::get_alert_message( $entry, 'dashboard-widget' ), \WpSecurityAuditLog::get_allowed_html_tags() ); ?>
 								</a>
 							</td>
 						</tr>
 					<?php endforeach; ?>
 				</tbody>
 			</table>
-		<?php endif; ?>
-		</div>
-		<?php
+			<?php } ?>
+			</div>
+			<?php
+		}
 	}
 }
