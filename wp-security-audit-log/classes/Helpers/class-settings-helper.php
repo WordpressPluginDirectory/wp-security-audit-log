@@ -11,7 +11,9 @@ declare(strict_types=1);
 
 namespace WSAL\Helpers;
 
+use WSAL\Controllers\Connection;
 use WSAL\Controllers\Alert_Manager;
+use WSAL\Helpers\Plugin_Settings_Helper;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -53,6 +55,15 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 * @since 4.3.0
 		 */
 		private static $excluded_post_types = array();
+
+		/**
+		 * Holds the array with the excluded post statuses.
+		 *
+		 * @var array
+		 *
+		 * @since 4.3.0
+		 */
+		private static $excluded_post_statuses = array();
 
 		/**
 		 * Custom post meta fields excluded from monitoring.
@@ -115,7 +126,7 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 *
 		 * @since 4.5.0
 		 */
-		private static $default_always_disabled_alerts = array( 5010, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5022, 5023, 5024 );
+		private static $default_always_disabled_alerts = array( 5010, 5011, 5012, 5013, 5014, 5015, 5016, 5017, 5018, 5022, 5023, 5024, 6069, 6070 );
 
 		/**
 		 * Holds the array with the disabled alerts codes.
@@ -143,15 +154,6 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 * @since 4.5.1
 		 */
 		private static $frontend_events = null;
-
-		/**
-		 * Allowed Plugin Viewers.
-		 *
-		 * @var array
-		 *
-		 * @since 4.6.0
-		 */
-		private static $viewers = null;
 
 		/**
 		 * Gets the value of an option.
@@ -462,6 +464,117 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		}
 
 		/**
+		 * Check if archiving stop.
+		 *
+		 * @param bool $enabled - Value.
+		 *
+		 * @return bool
+		 *
+		 * @since 5.0.0
+		 */
+		public static function set_archiving_stop( $enabled ) {
+			return self::set_option_value( 'archiving-stop', $enabled );
+		}
+
+		/**
+		 * Get archiving date.
+		 *
+		 * @return int value
+		 *
+		 * @since 5.0.0
+		 */
+		public static function get_archiving_date() {
+			return (int) self::get_option_value( 'archiving-date', 1 );
+		}
+
+		/**
+		 * Get archiving date type.
+		 *
+		 * @return string value
+		 *
+		 * @since 5.0.0
+		 */
+		public static function get_archiving_date_type() {
+			return self::get_option_value( 'archiving-date-type', 'months' );
+		}
+
+		/**
+		 * Set archiving date.
+		 *
+		 * @param string $newvalue - New value.
+		 *
+		 * @since 5.0.0
+		 */
+		public static function set_archiving_date( $newvalue ) {
+			self::set_option_value( 'archiving-date', (int) $newvalue );
+		}
+
+		/**
+		 * Set archiving date type.
+		 *
+		 * @param string $newvalue - New value.
+		 *
+		 * @since 5.0.0
+		 */
+		public static function set_archiving_date_type( $newvalue ) {
+			self::set_option_value( 'archiving-date-type', $newvalue );
+		}
+
+		/**
+		 * Get archiving frequency.
+		 *
+		 * @return string frequency
+		 *
+		 * @since 5.0.0
+		 */
+		public static function get_archiving_frequency() {
+			return self::get_option_value( 'archiving-run-every', 'hourly' );
+		}
+
+		/**
+		 * Set archiving frequency.
+		 *
+		 * @param string $newvalue - New value.
+		 *
+		 * @since 5.0.0
+		 */
+		public static function set_archiving_run_every( $newvalue ) {
+			self::set_option_value( 'archiving-run-every', $newvalue );
+		}
+
+		/**
+		 * Check if archiving cron job started.
+		 *
+		 * @return bool
+		 *
+		 * @since 5.0.0
+		 */
+		public static function is_archiving_cron_started() {
+			return self::get_boolean_option_value( 'archiving-cron-started', false );
+		}
+
+		/**
+		 * Get the Archive config
+		 *
+		 * @return array|null config
+		 *
+		 * @since 5.0.0
+		 */
+		public static function get_archive_config() {
+			$connection_name = self::get_option_value( 'archive-connection' );
+			if ( empty( $connection_name ) ) {
+				return null;
+			}
+
+			$connection = Connection::load_connection_config( $connection_name );
+			if ( ! is_array( $connection ) ) {
+				return null;
+			}
+
+			return $connection;
+		}
+
+		/**
 		 * Adds prefix to the given option name is necessary.
 		 *
 		 * @param string $name - The option name to check and add prefix if needed.
@@ -489,19 +602,23 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 * @since 4.4.3
 		 */
 		private static function get_option_value_internal( $option_name = '', $default = null ) {
-			// bail early if no option name w\as requested.
+			// bail early if no option name was requested.
 			if ( empty( $option_name ) || ! is_string( $option_name ) ) {
 				return;
 			}
 
 			if ( WP_Helper::is_multisite() ) {
-				\switch_to_blog( \get_main_network_id() );
+				if ( \function_exists( 'switch_to_blog' ) ) {
+					\switch_to_blog( \get_main_network_id() );
+				}
 			}
 
 			$result = \get_option( $option_name, $default );
 
 			if ( WP_Helper::is_multisite() ) {
-				\restore_current_blog();
+				if ( \function_exists( 'restore_current_blog' ) ) {
+					\restore_current_blog();
+				}
 			}
 
 			return \maybe_unserialize( $result );
@@ -526,7 +643,9 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 			}
 
 			if ( WP_Helper::is_multisite() ) {
-				\switch_to_blog( \get_main_network_id() );
+				if ( \function_exists( 'switch_to_blog' ) ) {
+					\switch_to_blog( \get_main_network_id() );
+				}
 			}
 
 			if ( false === $autoload ) {
@@ -537,7 +656,9 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 			}
 
 			if ( WP_Helper::is_multisite() ) {
-				\restore_current_blog();
+				if ( \function_exists( 'restore_current_blog' ) ) {
+					\restore_current_blog();
+				}
 			}
 
 			return $result;
@@ -589,14 +710,18 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 					'HTTP_FORWARDED',
 					'REMOTE_ADDR',
 					// Cloudflare.
-					'HTTP_CF-Connecting-IP',
+					'HTTP_CF-CONNECTING-IP',
 					'HTTP_TRUE_CLIENT_IP',
+					'CF-CONNECTING-IP',
+					'TRUE_CLIENT_IP',
 				);
+				$inner_server  = array_change_key_case( $_SERVER, CASE_UPPER );
 				foreach ( $proxy_headers as $key ) {
-					if ( isset( $_SERVER[ $key ] ) ) {
+					$key = \strtoupper( $key );
+					if ( isset( $inner_server[ $key ] ) ) {
 						self::$client_ips[ $key ] = array();
 
-						foreach ( explode( ',', sanitize_text_field( \wp_unslash( $_SERVER[ $key ] ) ) ) as $ip ) {
+						foreach ( explode( ',', \sanitize_text_field( \wp_unslash( $inner_server[ $key ] ) ) ) as $ip ) {
 							$ip = self::normalize_ip( $ip );
 							if ( Validator::validate_ip( $ip ) ) {
 								self::$client_ips[ $key ][] = $ip;
@@ -638,8 +763,9 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 * @return array List of IP addresses to exclude from monitoring.
 		 *
 		 * @since 4.5.0
+		 * @since 5.0.0 - This function is properly named using plural form.
 		 */
-		public static function get_excluded_monitoring_ip() {
+		public static function get_excluded_monitoring_ips() {
 			if ( empty( self::$excluded_ips ) ) {
 				self::$excluded_ips = array_unique( array_filter( explode( ',', self::get_option_value( 'excluded-ip', '' ) ) ) );
 			}
@@ -783,13 +909,31 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		}
 
 		/**
+		 * Get Custom Post Statuses excluded from monitoring.
+		 *
+		 * @since 5.0.0
+		 */
+		public static function get_excluded_post_statuses(): array {
+			if ( empty( self::$excluded_post_statuses ) ) {
+				self::$excluded_post_statuses = array();
+				if ( ! is_null( self::get_option_value( 'excluded-post-status' ) ) ) {
+					self::$excluded_post_statuses = array_unique( array_filter( explode( ',', self::get_option_value( 'excluded-post-status' ) ) ) );
+				}
+			}
+
+			return self::$excluded_post_statuses;
+		}
+
+		/**
 		 * Method: Set Disabled Alerts.
 		 *
 		 * @param array $types IDs alerts to disable.
+		 *
+		 * @since 5.1.1
 		 */
 		public static function set_disabled_alerts( $types ) {
 			self::$disabled_alerts = array_unique( array_map( 'intval', $types ) );
-			self::set_option_value( 'disabled-alerts', implode( ',', self::$disabled_alerts ) );
+			self::set_option_value( 'disabled-alerts', self::$disabled_alerts );
 		}
 
 		/**
@@ -801,10 +945,18 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 */
 		public static function get_disabled_alerts() {
 			if ( ! self::$disabled_alerts ) {
-				$disabled_defaults     = self::get_default_disabled_alerts() + self::get_default_always_disabled_alerts();
-				self::$disabled_alerts = implode( ',', $disabled_defaults );
+				$disabled_defaults = self::get_default_disabled_alerts() + self::get_default_always_disabled_alerts();
+
 				self::$disabled_alerts = self::get_option_value( 'disabled-alerts', self::$disabled_alerts );
-				self::$disabled_alerts = ( '' === self::$disabled_alerts ) ? array() : explode( ',', self::$disabled_alerts );
+				if ( ! \is_array( self::$disabled_alerts ) ) {
+					self::$disabled_alerts = \explode( ',', self::$disabled_alerts );
+
+					\array_walk( self::$disabled_alerts, 'trim' );
+				}
+				self::$disabled_alerts = \array_merge( $disabled_defaults, self::$disabled_alerts );
+				if ( ! \is_array( self::$disabled_alerts ) ) {
+					self::$disabled_alerts = (array) self::$disabled_alerts;
+				}
 				self::$disabled_alerts = array_map( 'intval', self::$disabled_alerts );
 
 				self::$disabled_alerts = ( ! is_array( self::$disabled_alerts ) ) ? explode( ',', self::$disabled_alerts ) : self::$disabled_alerts;
@@ -854,16 +1006,9 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 					// If the logging is enabled, we don't need to check mirrors.
 					if ( class_exists( 'WSAL_Extension_Manager' ) ) {
 						if ( class_exists( 'WSAL_Ext_Plugin' ) ) {
-							$ext_plugin = new \WSAL_Ext_Plugin();
+							self::$database_logging_enabled = true;
 
-							$wsal                   = \WpSecurityAuditLog::get_instance();
-							$wsal->external_db_util = new \WSAL_Ext_Common( $wsal, $ext_plugin );
-
-							if ( ! $is_disabled || is_null( $wsal->external_db_util ) ) {
-								self::$database_logging_enabled = true;
-
-								return self::$database_logging_enabled;
-							}
+							return self::$database_logging_enabled;
 						}
 					}
 				}
@@ -1265,7 +1410,7 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 
 			// Work out the working directory base path.
 			if ( defined( '\WSAL_WORKING_DIR_PATH' ) ) {
-				$result = trailingslashit( \WSAL_WORKING_DIR_PATH );
+				$result = \trailingslashit( \WSAL_WORKING_DIR_PATH );
 			} else {
 				$upload_dir = wp_upload_dir( null, false );
 				if ( is_array( $upload_dir ) && array_key_exists( 'basedir', $upload_dir ) ) {
@@ -1473,7 +1618,7 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 * @since 4.6.0
 		 */
 		public static function current_user_can( $action ) {
-			return self::user_can( wp_get_current_user(), $action );
+			return self::user_can( User_Helper::get_current_user(), $action );
 		}
 
 		/**
@@ -1544,7 +1689,7 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 					if ( ! $result ) {
 						// User is still not allowed to view the logs, let's check the additional users and roles
 						// settings.
-						$extra_viewers = self::get_allowed_plugin_viewers();
+						$extra_viewers = Plugin_Settings_Helper::get_allowed_plugin_viewers();
 						if ( in_array( $user->user_login, $extra_viewers, true ) ) {
 							$result = true;
 						} elseif ( ! empty( array_intersect( $extra_viewers, $user->roles ) ) ) {
@@ -1597,21 +1742,6 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		}
 
 		/**
-		 * Get Plugin Viewers.
-		 *
-		 * @return array List of users allowed to view the plugin.
-		 *
-		 * @since 4.6.0
-		 */
-		public static function get_allowed_plugin_viewers() {
-			if ( is_null( self::$viewers ) ) {
-				self::$viewers = array_unique( array_filter( explode( ',', self::get_option_value( 'plugin-viewers', '' ) ) ) );
-			}
-
-			return self::$viewers;
-		}
-
-		/**
 		 * Deletes all the settings from the option table of the WP
 		 *
 		 * @return void
@@ -1620,17 +1750,20 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 */
 		public static function delete_all_settings() {
 			global $wpdb;
-			$plugin_options = $wpdb->get_results( "SELECT option_name FROM $wpdb->options WHERE option_name LIKE 'wsal_%'" ); // phpcs:ignore
 
-			foreach ( $plugin_options as $option ) {
-				delete_site_option( $option->option_name );
+			$wpdb->query( "DELETE FROM $wpdb->options WHERE option_name LIKE 'wsal_%'" ); // phpcs:ignore
+
+			if ( is_multisite() ) {
+				$wpdb->query( "DELETE FROM $wpdb->sitemeta WHERE meta_key LIKE 'wsal_%'" );
 			}
 
+			\wp_cache_flush();
+
 			// Remove wsal specific Freemius entry.
-			delete_site_option( 'fs_wsalp' );
+			\delete_site_option( 'fs_wsalp' );
 
 			// Ensue entry is fully cleared.
-			delete_site_option( 'wsal_networkwide_tracker_cpts' );
+			\delete_site_option( 'wsal_networkwide_tracker_cpts' );
 		}
 
 		/**
@@ -1644,7 +1777,7 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 		 */
 		public static function set_pruning_date_settings( $enable, $new_date, $new_unit ) {
 			$was_enabled = self::get_boolean_option_value( 'pruning-date-e', false );
-			$old_period  = self::get_option_value( 'pruning-date', '6 months' );
+			$old_period  = self::get_option_value( 'pruning-date', '3 months' );
 
 			if ( ! $was_enabled && $enable ) {
 				// The retention period is being enabled.
@@ -1694,6 +1827,37 @@ if ( ! class_exists( '\WSAL\Helpers\Settings_Helper' ) ) {
 						)
 					);
 				}
+			}
+		}
+
+		/**
+		 * Switch to Archive DB if is enabled.
+		 *
+		 * @since 5.0.0
+		 */
+		public static function switch_to_archive_db() {
+			if ( ! self::is_archiving_enabled() ) {
+				return;
+			}
+
+			Connection::enable_archive_mode();
+		}
+
+		/**
+		 * Updates the database option that disables the database logging. If the logging is going to be enabled, the db
+		 * options is deleted.
+		 *
+		 * @param bool $is_disabled True if the database logging should be disabled.
+		 *
+		 * @since 4.3.2
+		 */
+		public static function set_database_logging_disabled( $is_disabled ) {
+			if ( $is_disabled ) {
+				self::set_boolean_option_value( 'db_logging_disabled', $is_disabled );
+				Alert_Manager::trigger_event( 6327, array( 'EventType' => 'disabled' ) );
+			} else {
+				self::delete_option_value( 'db_logging_disabled' );
+				Alert_Manager::trigger_event( 6327, array( 'EventType' => 'enabled' ) );
 			}
 		}
 	}

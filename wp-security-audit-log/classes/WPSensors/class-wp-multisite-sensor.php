@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace WSAL\WP_Sensors;
 
 use WSAL\Helpers\WP_Helper;
+use WSAL\MainWP\MainWP_Addon;
 use WSAL\Controllers\Alert_Manager;
 
 // Exit if accessed directly.
@@ -59,7 +60,7 @@ if ( ! class_exists( '\WSAL\WP_Sensors\WP_Multisite_Sensor' ) ) {
 		 * @since 4.5.0
 		 */
 		public static function init() {
-			if ( WP_Helper::is_multisite() ) {
+			if ( WP_Helper::is_multisite() || MainWP_Addon::check_mainwp_plugin_active() ) {
 				add_action( 'admin_init', array( __CLASS__, 'event_admin_init' ) );
 				if ( current_user_can( 'switch_themes' ) ) {
 					add_action( 'shutdown', array( __CLASS__, 'event_admin_shutdown' ) );
@@ -72,6 +73,8 @@ if ( ! class_exists( '\WSAL\WP_Sensors\WP_Multisite_Sensor' ) ) {
 				add_action( 'wp_uninitialize_site', array( __CLASS__, 'event_delete_blog' ) );
 				add_action( 'add_user_to_blog', array( __CLASS__, 'event_user_added_to_blog' ), 10, 3 );
 				add_action( 'remove_user_from_blog', array( __CLASS__, 'event_user_removed_from_blog' ), 10, 2 );
+
+				add_action( 'wpmu_upgrade_site', array( __CLASS__, 'event_site_upgraded' ), 10, 1 );
 
 				add_action( 'update_site_option', array( __CLASS__, 'on_network_option_change' ), 10, 4 );
 			}
@@ -378,7 +381,7 @@ if ( ! class_exists( '\WSAL\WP_Sensors\WP_Multisite_Sensor' ) ) {
 					'SiteName'       => get_blog_option( $blog_id, 'blogname' ),
 					'FirstName'      => $user ? $user->user_firstname : false,
 					'LastName'       => $user ? $user->user_lastname : false,
-					'EditUserLink'   => add_query_arg( 'user_id', $user_id, admin_url( 'user-edit.php' ) ),
+					'EditUserLink'   => add_query_arg( 'user_id', $user_id, \network_admin_url( 'user-edit.php' ) ),
 				),
 				array( __CLASS__, 'must_not_contain_create_user' )
 			);
@@ -404,7 +407,7 @@ if ( ! class_exists( '\WSAL\WP_Sensors\WP_Multisite_Sensor' ) ) {
 					'SiteName'       => get_blog_option( $blog_id, 'blogname' ),
 					'FirstName'      => $user ? $user->user_firstname : false,
 					'LastName'       => $user ? $user->user_lastname : false,
-					'EditUserLink'   => add_query_arg( 'user_id', $user_id, admin_url( 'user-edit.php' ) ),
+					'EditUserLink'   => add_query_arg( 'user_id', $user_id, \network_admin_url( 'user-edit.php' ) ),
 				),
 				array( __CLASS__, 'must_not_contain_create_user' )
 			);
@@ -419,6 +422,26 @@ if ( ! class_exists( '\WSAL\WP_Sensors\WP_Multisite_Sensor' ) ) {
 		 */
 		public static function must_not_contain_create_user() {
 			return ! Alert_Manager::will_trigger( 4012 );
+		}
+
+
+		/**
+		 * Existing site was upgraded.
+		 *
+		 * @param int $blog_id - Blog ID.
+		 *
+		 * @since 5.1.1
+		 */
+		public static function event_site_upgraded( $blog_id ) {
+			Alert_Manager::trigger_event(
+				7013,
+				array(
+					'BlogID'   => $blog_id,
+					'SiteName' => get_blog_option( $blog_id, 'blogname' ),
+					'BlogURL'  => get_home_url( $blog_id ),
+					'NewVersion' => get_bloginfo( 'version' ),
+				)
+			);
 		}
 	}
 }

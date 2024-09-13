@@ -5,8 +5,8 @@ License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl.html
 Tags:  activity log, security audit log, user tracking, security event log, audit trail, user activity, changelog, history, log, website changes
 Requires at least: 5.0
-Tested up to: 6.4.3
-Stable tag: 4.6.4
+Tested up to: 6.6.2
+Stable tag: 5.2.1
 Requires PHP: 7.2
 
 Keep a comprehensive log of user and system changes that take place on your WordPress website with the the #1 user-rated activity log plugin.
@@ -195,23 +195,94 @@ Please refer to our [support pages](https://melapress.com/support/?utm_source=wp
 == Screenshots ==
 
 1. The WordPress activity logs from where the site administrator can see all the user and site changes.
-2. See who is logged in to your WordPress and manage users sessions with Users Sessions Management.
+2. See who is logged in to your WordPress and manage users sessions with Users Sessions Management in the Premium edition.
 3. The plugin settings from where site administrator can configure generic plugin settings such as [reverse proxy support](https://melapress.com/support/kb/wp-activity-log-support-reverse-proxies-web-application-firewalls/?utm_source=wp+repo&utm_medium=repo+link&utm_campaign=wordpress_org&utm_content=wsal), who can manage the plugin etc.
-4. The WordPress audit trail settings from where you can configure automatic pruning of alerts, which timestamp should be used and more.
-5. Configuring WordPress email and SMS alerts with the Email & SMS Notifications module.
+4. Use the event Inspector to see more technical details about each event in the activity log, such as the session ID and UserAgent string.
+5. Configuring WordPress email and instant SMS alerts with the Email & SMS Notifications module in the Premium edition.
 6. Search in the WordPress activity log with the use filters to fine tune the search results.
 7. The Enable/Disable events section from where Administrators can disable or enable activity log events.
-8. The Log Viewer of a Super Admin in a WordPress multisite network installation with the Site selection drop down menu.
+8. The Activity Log Viewer of a Super Admin in a WordPress multisite network installation alllows the admin to view the logs from all the network, or filter the logs of a specific site.
 9. WP Activity Log is integrated with the built-in revision system of WordPress, thus allowing you to see what content changes users make on your WordPress posts, pages and custom post types. For more information read [Keep Record of All WordPress Content Changes](https://melapress.com/support/kb/wp-activity-log-how-keep-record-of-content-changes/?utm_source=wp+repo&utm_medium=repo+link&utm_campaign=wordpress_org&utm_content=wsal)
-10. Mirror the WordPress activity log to an external solution such as Syslog or Papertrail to centralize logging, ensure logs are always available and cannot be tampered with in the unfortunate case of a hack attack.
+10. Mirror the WordPress activity log to an external solution such as Syslog or Papertrail to centralize logging in the Premium edition, to ensure logs are always available and cannot be tampered with in the unfortunate case of a hack attack.
+11. Use the plugin settings to exclude objects from the logs, configure automatic pruning of events, which timestamp to be shonw in the logs and much more. The plugin is fully confirable.
+12. Generate any type of statistics reports from the actiivty log with the Premium edition. You can see statistics such as number of newly registered users, number of user profile changes, number of logins, different IP addresses per user, and much more.
+13. Use the Premium edition to also export any activity log data to an HTML report or CSV file. CSV files are the most widely supported format and can easily be read, parsed and imported in third party systems.
 
 == Changelog ==
 
-= 4.6.4 (2024-02-14) =
+= 5.2.1 (2024-09-12) =
 
  * **Bug fixes**
-	 * Fixed: Undefined array warning shown on website's front-end when running Gravity Forms in certain setups.
-	 * Exception handling added for when uploading a PDF as a WooCommerce product image.
-	 * Fixed: fatal error in third step of install wizard when plugin is installed on a vanilla WordPress.
+	 * Fixed a crash in the WooCommerce sensor which happens when a new WooCommerce user is registered.
+	 * Addressed problem with Redirection sensor when Rest API endpoint is checked.
+	 * Fixed a crash and a number of PHP notices which are triggered when the Redirects plugin and Elementor are installed on the website.
+	 * Addressed problem with system sensor when cron job is checked.
+
+= 5.2.0 (2024-09-12) =
+
+* **New event IDs to report changes in Redirections plugin**
+In this update we are introducing out-of-the-box activity logging for changes done in the configuration of the Redirections plugin.
+	* Event ID 10501: A new redirection was created.
+	* Event ID 10502: Activated a redirection.
+	* Event ID 10503: Deactivated a redirection.
+	* Event ID 10504: Changed the source URL of a redirection.
+	* Event ID 10505: Changed the query parameter of a redirection.
+	* Event ID 10506: Changed the target URL of a redirection. 
+	* Event ID 10507: Changed the redirection group of a redirection.
+	* Event ID 10508: Deleted a redirection.
+	* Event ID 10509: Created a new redirection group.
+	* Event ID 10510: Activated a redirection group.
+	* Event ID 10511: Deactivated a redirection group.
+	* Event ID 10512: Renamed a redirection group.
+	* Event ID 10513: Changed the module type of a redirection group.
+	* Event ID 10514: Deleted a redirection group.
+
+* **New event IDs to report WordPress Cron changes etc**
+In this update we are introducing coverage of changes in the WordPress cron and the cron jobs / tasks.
+	 * Event ID 6066: A new one-time task has been scheduled in the cron.
+	 * Event ID 6067: A new recurring task has been scheduled in the cron.
+	 * Event ID 6068: The schedule of a recurring cron task has changed.
+	 * Event ID 6069: A one-time task has been executed by cron.
+	 * Event ID 6070: A recurring task has been executed by cron.
+	 * Event ID 6071: A one-time task has been deleted from the cron.
+	 * Event ID 6072:  A recurring task has been deleted from the cron.
+
+* **Other generic new event IDs**
+	 * Event ID 6063: A new website site icon (favicon) has been added.
+	 * Event ID 6064: The website site icon (favicon) was removed.
+	 * Event ID 7013: Updated WordPress on the network subsites.
+	 * Event ID 5720: Activated or deactivated a GravityForms form.
+	 * Event ID 9155: A comment was added to a WooCommerce order.
+	 * Event ID 9156: A comment was deleted from a WooCommerce order.
+
+ * **Plugin & functionality improvements**
+	 * Plugin checks for existing session cookie when user navigates directly to the login page so new users sessions are not created unnecessarily and no users are locked out when session management features are enabled.
+	 * Set the default activity log retention policy to 3 months if not configured by the user.
+	 * User is redirected to the activity log viewer page upon installing the plugin.
+	 * Added some padding / improved plugin's activity log view in MainWP.
+	 * Added new top floating menu and a banner + footer links in the Free edition of the plugin.
+	 * Improved the text of event ID 6063.
+	 * Removed redundant code that was used to count the number of failed login attempts from an IP address. Now plugin reports every failed login attempt as an individual event in the log.
+	 * Removed redundant code that was used to enable early plugin loading (was typically used on websites that use admin blocking plugins).
+	 * Optimized the WooCommerce sensor to properly report the changes that take place when an order is place in WooCommerce - previously reported too many events which might be confusing.
+	 * Improved support for custom WooCommerce order names (YITH).
+	 * Event ID 1005 (user logged in from a different device) now counts towards the total number of logins when generating user login / activity reports.
+	 * Added the "Settings" node in the MainWP menu (previously only available on the WordPress native dashboard, even when installed on MainWP).
+	 * Applied several recognition updates to the detection of reverse proxy and WAF IP addresses feature.
+	 * Added some minor UI tweaks to the HTML reports.
+
+ * **Bug fixes**
+	 * Fixed a number of fatal errors in the WooCommerce sensor which were caused in some edge cases.
+	 * Fixed: Redirect group is now reported in event ID 10501. Previously "null" was reported.
+	 * Fixed: Incorrect time was being reported in the Retention policies settings for the purging of old data in the activity log.
+	 * Fixed: plugin settings not removed when option to delete settings upon uninstall is enabled on a multisite network.
+	 * Fixed: event ID 9156 (changed note in WooCommerce order) reported instead of event ID 9155 (added note to a WooCommerce order).
+	 * Form URL was not reported in some event IDs which report changes in Gravity Forms form changes.
+	 * Fixed: Fatal error when editing WooCommerce products prices in bulk with Advanced Bulk Edit plugin.
+	 * Fixed: Event ID 6064 reported instead of ID 6065 when switching the favicon.
+	 * Fixed: Event ID 9156 was reported twice in the activity log when a WooCommerce order was placed by a non-logged in user.
+	 * Fixed a number of PHP Notices, warnings and deprecated code messages by improving the code for better support of more recent PHP versions.
+	 * Fixed: Plugin was not reporting the change when when the price of a WooCommerce product is changed to NULL via the REST API.
+	 * Fixed a warning about an undefined array key "zapier_integration_active" when saving changes in the Yoast SEO plugin.
 
 Refer to the complete [plugin changelog](https://melapress.com/support/kb/wp-activity-log-plugin-changelog/?utm_source=wp+repo&utm_medium=repo+link&utm_campaign=wordpress_org&utm_content=wsal) for more detailed information about what was new, improved and fixed in previous version updates of WP Activity Log.

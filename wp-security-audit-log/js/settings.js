@@ -22,7 +22,7 @@ jQuery( document ).ready( function() {
 		}
 	});
 
-	jQuery( '.js-query-add, #ViewerQueryAdd, #EditorQueryAdd, #ExRoleQueryAdd, #ExUserQueryAdd, #CustomQueryAdd, #IpAddrQueryAdd, #ExCPTsQueryAdd, #ExURLsQueryAdd' ).click( function() {
+	jQuery( '.js-query-add, #ViewerQueryAdd, #EditorQueryAdd, #ExRoleQueryAdd, #ExUserQueryAdd, #CustomQueryAdd, #IpAddrQueryAdd, #ExCPTsQueryAdd, #ExURLsQueryAdd, #StatusQueryAdd' ).click( function() {
 		var buttonElm = jQuery( this );
 		var fieldsetElm = buttonElm.closest( 'fieldset' );
 		var type = fieldsetElm.attr( 'data-type' );
@@ -64,6 +64,12 @@ jQuery( document ).ready( function() {
 							jQuery( '#' + type + 'QueryBox' ).val( '' );
 							return;
 						}
+					} else if ( 'Status' === type ) {
+						if ( 'other' === data.tokenType ) {
+							alert( wsal_data.invalidCPT );
+							jQuery( '#' + type + 'QueryBox' ).val( '' );
+							return;
+						}
 					} else if ( 'IpAddr' === type ) {
 						if ( 'other' === data.tokenType ) {
 							alert( wsal_data.invalidIP );
@@ -91,7 +97,7 @@ jQuery( document ).ready( function() {
 		);
 	});
 
-	jQuery( '.js-list>span>a, #ViewerList>span>a, #EditorList>span>a, #ExRoleList>span>a, #ExUserList>span>a, #CustomList>span>a, #IpAddrList>span>a, #ExCPTsList>span>a, #ExURLsList>span>a' ).click( RemoveSecToken );
+	jQuery( '.js-list>span>a, #ViewerList>span>a, #EditorList>span>a, #ExRoleList>span>a, #ExUserList>span>a, #CustomList>span>a, #IpAddrList>span>a, #ExCPTsList>span>a, #ExURLsList>span>a, #StatusList>span>a' ).click( RemoveSecToken );
 
 	var usersUrl = ajaxurl + '?action=AjaxGetAllUsers&wsal_nonce=' + wsal_data.wp_nonce;
 	jQuery( '#ExUserQueryBox' ).autocomplete({
@@ -113,6 +119,12 @@ jQuery( document ).ready( function() {
 	var cptsUrl = ajaxurl + '?action=AjaxGetAllCPT&wsal_nonce=' + wsal_data.wp_nonce;
 	jQuery( '#ExCPTsQueryBox' ).autocomplete({
 	    source: cptsUrl,
+	    minLength: 1
+	});
+
+	var statusesUrl = ajaxurl + '?action=AjaxGetAllStatuses&wsal_nonce=' + wsal_data.wp_nonce;
+	jQuery( '#StatusQueryBox' ).autocomplete({
+	    source: statusesUrl,
 	    minLength: 1
 	});
 
@@ -207,27 +219,6 @@ jQuery( document ).ready( function() {
 			}
 		});
 	}
-
-    jQuery('input[name="mwp_stealth_mode"]').on('change', function () {
-        var admin_blocking_support_input = jQuery('input[name="mwp_admin_blocking_support"]');
-        if ('yes' == this.value) {
-
-            //	re-enable the admin blocking support checkbox
-            admin_blocking_support_input.removeAttr('disabled');
-            if ('yes' == admin_blocking_support_input.attr('data-check-on-revert')) {
-                admin_blocking_support_input.attr('checked', 'checked')
-                    .removeAttr('data-check-on-revert');
-            }
-        } else {
-
-            //	disable the admin blocking support checkbox and uncheck it as well
-            admin_blocking_support_input.attr('disabled', 'disabled');
-            if (admin_blocking_support_input.attr('checked')) {
-                admin_blocking_support_input.removeAttr('checked', 'checked')
-                    .attr('data-check-on-revert', 'yes')
-            }
-        }
-    });
 
 	/**
 	 * Alert user to save settings before switching tabs.

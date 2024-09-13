@@ -312,7 +312,7 @@ td.column-user {
 }
 
 .wp-list-table #code {
-	width: 85px;
+	width: 95px;
 }
 
 .wp-list-table #type {
@@ -616,6 +616,11 @@ td.wsal-grid-text-data {
 
 .toplevel_page_wsal-auditlog .wp-menu-image img {
 	width: 1.2em;
+}
+
+.mainwp-content-wrap #audit-log-viewer-content {
+	margin: 15px;
+	overflow: auto;
 }
 
 #audit-log-viewer-content .tablenav.top {

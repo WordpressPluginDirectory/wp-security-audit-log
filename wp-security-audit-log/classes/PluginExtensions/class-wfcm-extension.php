@@ -59,7 +59,7 @@ if ( ! class_exists( '\WSAL\PluginExtensions\WFCM_Extension' ) ) {
 		 *
 		 * @return string Plugin name.
 		 *
-		 * @latest
+		 * @since 5.1.0
 		 */
 		public static function get_plugin_name(): string {
 			return 'Website File Changes Monitor';
@@ -70,7 +70,7 @@ if ( ! class_exists( '\WSAL\PluginExtensions\WFCM_Extension' ) ) {
 		 *
 		 * @return string Plugin icon URL.
 		 *
-		 * @latest
+		 * @since 5.1.0
 		 */
 		public static function get_plugin_icon_url(): string {
 			return 'https://ps.w.org/website-file-changes-monitor/assets/icon-128x128.png?rev=2393849';
@@ -105,6 +105,8 @@ if ( ! class_exists( '\WSAL\PluginExtensions\WFCM_Extension' ) ) {
 		 * @param array  $events Events.
 		 *
 		 * @return string
+		 * 
+		 * @since 5.1.0
 		 */
 		public static function append_dailynotification_email_content( $body, $events ): string {
 			if ( ! empty( $events ) ) {
@@ -140,7 +142,7 @@ if ( ! class_exists( '\WSAL\PluginExtensions\WFCM_Extension' ) ) {
 						$body .= '<tr><td style="font-family: Verdana, sans-serif; font-weight: normal; font-size: 16px; line-height: 28px; color: #404040;padding-bottom: 5px;padding-top: 0px;"><img src="' . $media_check . '" style="height: 14px; width: 14px; position: relative; top: 1px;" /> Some files were deleted</td></tr>';
 					}
 
-					$body .= '<tr><td style="font-family: Verdana, sans-serif; font-weight: normal; font-size: 16px; line-height: 28px; color: #404040;padding-bottom: 20px;padding-top: 20px;">Click <a href="' . add_query_arg('page', 'wfcm-file-changes', admin_url('admin.php')) . '" target="_blank" style="font-family: Verdana, sans-serif; font-weight: normal; font-size: 16px; line-height: 28px; color: #149247;">here</a> to see the file changes.</td></tr>';
+					$body .= '<tr><td style="font-family: Verdana, sans-serif; font-weight: normal; font-size: 16px; line-height: 28px; color: #404040;padding-bottom: 20px;padding-top: 20px;">Click <a href="' . add_query_arg('page', 'wfcm-file-changes', \network_admin_url('admin.php')) . '" target="_blank" style="font-family: Verdana, sans-serif; font-weight: normal; font-size: 16px; line-height: 28px; color: #149247;">here</a> to see the file changes.</td></tr>';
 
 					$body .= '</table></td></tr><!-- Table Border Start --><!-- Desc End --></table></td></tr><!-- Website File Changes End -->';
 				}

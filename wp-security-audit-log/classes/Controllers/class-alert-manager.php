@@ -16,13 +16,12 @@ namespace WSAL\Controllers;
 
 use WSAL\Helpers\Logger;
 use WSAL\Helpers\WP_Helper;
-use WSAL\Helpers\User_Utils;
 use WSAL\Helpers\User_Helper;
 use WSAL\Controllers\Constants;
+use WSAL\Helpers\Classes_Helper;
 use WSAL\Helpers\Settings_Helper;
 use WSAL\Entities\Metadata_Entity;
 use WSAL\Entities\Occurrences_Entity;
-use WSAL\Helpers\DateTime_Formatter_Helper;
 
 // Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -97,6 +96,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * Contains an array of alerts that have been triggered for this request.
 		 *
 		 * @var int[]
+		 *
+		 * @since 4.5.0
 		 */
 		private static $triggered_types = array();
 
@@ -151,6 +152,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * Store WP Users for caching purposes.
 		 *
 		 * @var WP_User[]
+		 *
+		 * @since 4.5.0
 		 */
 		private static $wp_users = array();
 
@@ -160,6 +163,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * Store WP Users for caching purposes.
 		 *
 		 * @var bool
+		 *
+		 * @since 4.5.0
 		 */
 		private static $is_ip_disabled = null;
 
@@ -190,7 +195,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 */
 		public static function init() {
 			// phpcs:disable
-			add_action( 'shutdown', array( __CLASS__, 'commit_pipeline' ), 8 );
+			// phpcs:enable
+			\add_action( 'shutdown', array( __CLASS__, 'commit_pipeline' ), 8 );
 		}
 
 		/**
@@ -216,8 +222,15 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 				}
 			}
 
+			// If the post status is disabled then return.
+			if ( isset( $data['PostStatus'] ) && ! empty( $data['PostStatus'] ) ) {
+				if ( self::is_disabled_post_status( $data['PostStatus'] ) ) {
+					return;
+				}
+			}
+
 			// Figure out the username.
-			$username = wp_get_current_user()->user_login;
+			$username = User_Helper::get_current_user()->user_login;
 
 			// If user switching plugin class exists and filter is set to disable then try to get the old user.
 			if ( apply_filters( 'wsal_disable_user_switching_plugin_tracking', false ) && class_exists( '\user_switching' ) ) {
@@ -270,7 +283,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 			if ( null === self::$is_ip_disabled ) {
 				self::$is_ip_disabled = false;
 				$ip                   = Settings_Helper::get_main_client_ip();
-				$excluded_ips         = Settings_Helper::get_excluded_monitoring_ip();
+				$excluded_ips         = Settings_Helper::get_excluded_monitoring_ips();
 
 				if ( ! empty( $excluded_ips ) ) {
 					foreach ( $excluded_ips as $excluded_ip ) {
@@ -291,6 +304,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 					}
 				}
 			}
+
 			return self::$is_ip_disabled;
 		}
 
@@ -305,6 +319,19 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 */
 		public static function is_disabled_post_type( $post_type ) {
 			return in_array( $post_type, self::get_all_post_types(), true );
+		}
+
+		/**
+		 * Method: Check whether post status is disabled or not.
+		 *
+		 * @param string $post_status - Post status.
+		 *
+		 * @return bool - True if disabled, False if otherwise.
+		 *
+		 * @since 5.0.0
+		 */
+		public static function is_disabled_post_status( $post_status ) {
+			return in_array( $post_status, Settings_Helper::get_excluded_post_statuses(), true );
 		}
 
 		/**
@@ -477,10 +504,17 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 				}
 			}
 
+			// If the post status is disabled then return.
+			if ( isset( $data['PostStatus'] ) && ! empty( $data['PostStatus'] ) ) {
+				if ( self::is_disabled_post_status( $data['PostStatus'] ) ) {
+					return;
+				}
+			}
+
 			$username = null;
 
 			// if user switching plugin class exists and filter is set to disable then try get the old user.
-			if ( apply_filters( 'wsal_disable_user_switching_plugin_tracking', false ) && class_exists( '\user_switching' ) ) {
+			if ( \apply_filters( 'wsal_disable_user_switching_plugin_tracking', false ) && class_exists( '\user_switching' ) ) {
 				$old_user = \user_switching::get_old_user();
 				if ( isset( $old_user->user_login ) ) {
 					// looks like this is a switched user so setup original user
@@ -503,7 +537,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 				$roles                    = User_Helper::get_user_roles( $old_user );
 				$data['CurrentUserRoles'] = $roles;
 			} else {
-				$username = wp_get_current_user()->user_login;
+				$username = User_Helper::get_current_user()->user_login;
 				$roles    = User_Helper::get_user_roles();
 			}
 
@@ -575,6 +609,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 *
 		 * @param array $groups - An array with group name as the index and an array of group items as the value.
 		 *                      Item values is an array of [type, code, description, message, object, event type] respectively.
+		 *
+		 * @since 5.1.1
 		 */
 		public static function register_group( $groups ) {
 			foreach ( $groups as $name => $group ) {
@@ -619,7 +655,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 			}
 
 			if ( isset( self::$alerts[ $code ] ) ) {
-				add_action( 'admin_notices', array( __CLASS__, 'duplicate_event_notice' ) );
+				\add_action( 'admin_notices', array( __CLASS__, 'duplicate_event_notice' ) );
 				/* Translators: Event ID */
 				$error_message = sprintf( esc_html__( 'Event %s already registered with WP Activity Log.', 'wp-security-audit-log' ), $code );
 				Logger::log( $error_message );
@@ -638,7 +674,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 			 *
 			 * @since 4.5.0
 			 */
-			$metadata = apply_filters( 'wsal_event_metadata_definition', $metadata, $code );
+			$metadata = \apply_filters( 'wsal_event_metadata_definition', $metadata, $code );
 
 			self::$alerts[ $code ] = array(
 				'code'        => $code,
@@ -664,11 +700,11 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 			$message = __( 'You have custom events that are using the same ID or IDs which are already registered in the plugin, so they have been disabled.', 'wp-security-audit-log' );
 			printf(
 				/* Translators: 1.CSS classes, 2. Notice, 3. Contact us link */
-				'<div class="%1$s"><p>%2$s %3$s ' . esc_html__( '%4$s to help you solve this issue.', 'wp-security-audit-log' ) . '</p></div>',
-				esc_attr( $class ),
-				'<span style="color:#dc3232; font-weight:bold;">' . esc_html__( 'ERROR:', 'wp-security-audit-log' ) . '</span>',
-				esc_html( $message ),
-				'<a href="https://melapress.com/contact" target="_blank">' . esc_html__( 'Contact us', 'wp-security-audit-log' ) . '</a>'
+				'<div class="%1$s"><p>%2$s %3$s ' . \esc_html__( '%4$s to help you solve this issue.', 'wp-security-audit-log' ) . '</p></div>',
+				\esc_attr( $class ),
+				'<span style="color:#dc3232; font-weight:bold;">' . \esc_html__( 'ERROR:', 'wp-security-audit-log' ) . '</span>',
+				\esc_html( $message ),
+				'<a href="https://melapress.com/contact" target="_blank">' . \esc_html__( 'Contact us', 'wp-security-audit-log' ) . '</a>'
 			);
 		}
 
@@ -680,6 +716,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * @param array $event_data - Misc alert data.
 		 */
 		public static function log( $event_id, $event_data = array() ) {
+			$alert_obj = self::get_alerts()[ $event_id ];
+
 			if ( ! isset( $event_data['ClientIP'] ) ) {
 				$client_ip = Settings_Helper::get_main_client_ip();
 				if ( ! empty( $client_ip ) ) {
@@ -699,10 +737,40 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 			}
 			if ( ! isset( $event_data['Username'] ) && ! isset( $event_data['CurrentUserID'] ) ) {
 				if ( function_exists( 'get_current_user_id' ) ) {
-					$event_data['CurrentUserID'] = get_current_user_id();
+					$event_data['CurrentUserID'] = \get_current_user_id();
+					if ( 0 !== $event_data['CurrentUserID'] ) {
+						$event_data['Username'] = \get_user_by( 'ID', $event_data['CurrentUserID'] )->user_login;
+					}
+					if ( 0 === $event_data['CurrentUserID'] ) {
+						if ( 'system' === \strtolower( $alert_obj['object'] ) ) {
+							$event_data['Username'] = 'System';
+						} elseif ( str_starts_with( \strtolower( $alert_obj['object'] ), 'woocommerce' ) ) {
+								$event_data['Username'] = 'WooCommerce System';
+						} else {
+							$event_data['Username'] = 'Unknown User';
+						}
+					}
 				}
 			}
-			if ( ! isset( $event_data['CurrentUserRoles'] ) && function_exists( 'is_user_logged_in' ) && is_user_logged_in() ) {
+			if ( isset( $event_data['CurrentUserID'] ) && ! isset( $event_data['Username'] ) ) {
+				if ( 0 === $event_data['CurrentUserID'] ) {
+					if ( 'system' === \strtolower( $alert_obj['object'] ) ) {
+						$event_data['Username'] = 'System';
+					} elseif ( str_starts_with( \strtolower( $alert_obj['object'] ), 'woocommerce' ) ) {
+						$event_data['Username'] = 'WooCommerce System';
+					} else {
+						$event_data['Username'] = 'Unknown User';
+					}
+				} else {
+					$user = \get_user_by( 'ID', $event_data['CurrentUserID'] );
+					if ( $user ) {
+						$event_data['Username'] = $user->user_login;
+					} else {
+						$event_data['Username'] = 'Deleted';
+					}
+				}
+			}
+			if ( ! isset( $event_data['CurrentUserRoles'] ) && function_exists( 'is_user_logged_in' ) && \is_user_logged_in() ) {
 				$current_user_roles = User_Helper::get_user_roles();
 				if ( ! empty( $current_user_roles ) ) {
 					$event_data['CurrentUserRoles'] = $current_user_roles;
@@ -720,7 +788,6 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 			}
 
 			// Get event severity.
-			$alert_obj  = self::get_alerts()[ $event_id ];
 			$alert_code = $alert_obj ? Constants::get_constant_code( $alert_obj['severity'] ) : -1;
 
 			if ( -1 !== $alert_code ) {
@@ -828,10 +895,10 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 */
 		public static function get_loggers(): array {
 			if ( empty( self::$loggers ) ) {
-				$loggers_list = \WSAL\Helpers\Classes_Helper::get_classes_by_namespace( '\WSAL\Loggers' );
+				$loggers_list = Classes_Helper::get_classes_by_namespace( '\WSAL\Loggers' );
 
 				foreach ( $loggers_list as $class_name ) {
-					self::$loggers[] = ( new $class_name( \WpSecurityAuditLog::get_instance() ) );
+					self::$loggers[] = ( new $class_name() );
 				}
 			}
 
@@ -843,6 +910,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * Method: Runs over triggered alerts in pipeline and passes them to loggers.
 		 *
 		 * @internal
+		 *
+		 * @since 5.1.1
 		 */
 		public static function commit_pipeline() {
 			foreach ( self::$pipeline as $key => $item ) {
@@ -927,13 +996,9 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * @since 4.5.0
 		 */
 		public static function get_alerts_by_category( $category ) {
-			if ( empty( self::$alerts ) ) {
-				self::get_alerts();
-			}
-
 			// Categorized alerts array.
 			$alerts = array();
-			foreach ( self::$alerts as $alert ) {
+			foreach ( self::get_alerts() as $alert ) {
 				if ( $category === $alert['category'] ) {
 					$alerts[ $alert['code'] ] = $alert;
 				}
@@ -952,13 +1017,9 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * @since 4.5.0
 		 */
 		public static function get_alerts_by_sub_category( $sub_category ) {
-			if ( empty( self::$alerts ) ) {
-				self::get_alerts();
-			}
-
 			// Sub-categorized alerts array.
 			$alerts = array();
-			foreach ( self::$alerts as $alert ) {
+			foreach ( self::get_alerts() as $alert ) {
 				if ( $sub_category === $alert['subcategory'] ) {
 					$alerts[ $alert['code'] ] = $alert;
 				}
@@ -1022,7 +1083,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 					if ( $known_to_trigger ) {
 						break;
 					}
-					if ( ! empty( $last_occurrence ) && ( $last_occurrence['created_on'] + self::$seconds_to_check_back ) > time() ) {
+					if ( ! empty( $last_occurrence ) && \is_array( ! empty( $last_occurrence ) ) && \key_exists( 'created_on', $last_occurrence ) && ( $last_occurrence['created_on'] + self::$seconds_to_check_back ) > time() ) {
 						if ( ! is_array( $alert_id ) && (int) $last_occurrence['alert_id'] === $alert_id ) {
 							$known_to_trigger = true;
 						} elseif ( is_array( $alert_id ) && in_array( (int) $last_occurrence[0]['alert_id'], $alert_id, true ) ) {
@@ -1042,12 +1103,14 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 *
 		 * @param int  $limit – Number of events.
 		 * @param bool $include_meta - Should we include meta to the collected events.
+		 * @param bool $first - If is set to true, it will extract oldest events (default is most recent ones).
 		 *
-		 * @return WSAL_Models_Occurrence[]|bool
+		 * @return array|bool
 		 *
 		 * @since 4.5.0
+		 * @since 5.0.0 $first flag is added
 		 */
-		public static function get_latest_events( $limit = 1, bool $include_meta = false ) {
+		public static function get_latest_events( $limit = 1, bool $include_meta = false, bool $first = false ) {
 
 			if ( ! Occurrences_Entity::get_connection()->has_connected ) {
 				// Connection problem while using external database (if local database is used, we would see WordPress's
@@ -1055,17 +1118,25 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 				return false;
 			}
 
+			$direction = 'DESC';
+			if ( $first ) {
+				$direction = 'ASC';
+			}
+
 			$query = array();
 
 			// Get site id.
 			$site_id = (int) WP_Helper::get_view_site_id();
+
+			$site_id = \apply_filters( 'wsal_alter_site_id', $site_id );
+
 			// if we have a blog id then add it.
 			if ( $site_id ) {
 				$query['AND'][] = array( ' site_id = %s ' => $site_id );
 			}
 
 			if ( ! $include_meta ) {
-				$events = Occurrences_Entity::build_query( array(), $query, array( 'created_on' => 'DESC' ), array( $limit ) );
+				$events = Occurrences_Entity::build_query( array(), $query, array( 'created_on' => $direction ), array( $limit ) );
 			} else {
 
 				$meta_table_name = Metadata_Entity::get_table_name();
@@ -1090,7 +1161,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 				 * Because of that we can not use limit directly here. We will extract enough data to include the metadata as well and limit the results later on - still fastest than creating enormous amount of queries.
 				 * Currently there are no more than 10 records (meta) per occurrence, we are using 12 just in case.
 				 */
-				$events = Occurrences_Entity::build_query( array_merge( $meta_full_fields_array, $occurrence_full_fields_array ), $query, array( 'created_on' => 'DESC' ), array( $limit * 12 ), $join_clause );
+				$events = Occurrences_Entity::build_query( array_merge( $meta_full_fields_array, $occurrence_full_fields_array ), $query, array( 'created_on' => $direction ), array( $limit * 12 ), $join_clause );
 
 				$events = Occurrences_Entity::prepare_with_meta_data( $events );
 
@@ -1110,6 +1181,8 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * @param int    $type    - Type of alert.
 		 * @param string $message - Alert message.
 		 * @param mixed  $args    - Message arguments.
+		 *
+		 * @since 5.1.1
 		 */
 		public static function log_problem( $type, $message, $args ) {
 			self::trigger_event(
@@ -1202,6 +1275,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 					'submitted'    => esc_html__( 'Submitted', 'wp-security-audit-log' ),
 					'revoked'      => esc_html__( 'Revoked', 'wp-security-audit-log' ),
 					'sent'         => esc_html__( 'Sent', 'wp-security-audit-log' ),
+					'executed'     => esc_html__( 'Executed', 'wp-security-audit-log' ),
 				);
 				// sort the types alphabetically.
 				asort( self::$event_types );
@@ -1249,6 +1323,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 					'comment'           => esc_html__( 'Comment', 'wp-security-audit-log' ),
 					'setting'           => esc_html__( 'Setting', 'wp-security-audit-log' ),
 					'system-setting'    => esc_html__( 'System Setting', 'wp-security-audit-log' ),
+					'cron-job'          => esc_html__( 'Cron Jobs', 'wp-security-audit-log' ),
 					'mainwp-network'    => esc_html__( 'MainWP Network', 'wp-security-audit-log' ),
 					'mainwp'            => esc_html__( 'MainWP', 'wp-security-audit-log' ),
 					'category'          => esc_html__( 'Category', 'wp-security-audit-log' ),
@@ -1289,55 +1364,52 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 *
 		 * @param string $username – Username.
 		 *
-		 * @return stdClass
+		 * @return array
 		 *
 		 * @since 4.5.0
 		 */
 		public static function get_event_user_data( $username ) {
 			// User data.
-			$user_data = new \stdClass();
+			$user_data = array();
 
 			// Handle WSAL usernames.
 			if ( empty( $username ) ) {
-				$user_data->username = 'System';
+				$user_data['username'] = 'System';
 			} elseif ( 'Plugin' === $username ) {
-				$user_data->username = 'Plugin';
+				$user_data['username'] = 'Plugin';
 			} elseif ( 'Plugins' === $username ) {
-				$user_data->username = 'Plugins';
+				$user_data['username'] = 'Plugins';
 			} elseif ( 'Website Visitor' === $username || 'Unregistered user' === $username ) {
-				$user_data->username = 'Unregistered user';
+				$user_data['username'] = 'Unregistered user';
 			} else {
 				// Check WP user.
 				if ( isset( self::$wp_users[ $username ] ) ) {
 					// Retrieve from users cache.
-					$user = self::$wp_users[ $username ];
+					$user_data = self::$wp_users[ $username ];
 				} else {
 					// Get user from WP.
-					$user = get_user_by( 'login', $username );
+					$user = \get_user_by( 'login', $username );
 
 					if ( $user && $user instanceof \WP_User ) {
 						// Store the user data in class member.
-						self::$wp_users[ $username ] = (object) array(
-							'ID'           => $user->ID,
-							'user_login'   => $user->user_login,
-							'first_name'   => $user->first_name,
-							'last_name'    => $user->last_name,
-							'display_name' => $user->display_name,
-							'user_email'   => $user->user_email,
+						self::$wp_users[ $username ] = array(
+							'ID'            => $user->ID,
+							'user_login'    => $user->user_login,
+							'first_name'    => $user->first_name,
+							'last_name'     => $user->last_name,
+							'display_name'  => $user->display_name,
+							'user_email'    => $user->user_email,
+							'user_nicename' => $user->user_nicename,
+							'user_roles'    => User_Helper::get_user_roles( $user ),
 						);
+
+						$user_data = self::$wp_users[ $username ];
 					}
 				}
 
 				// Set user data.
-				if ( $user ) {
-					$user_data->user_id      = $user->ID;
-					$user_data->username     = $user->user_login;
-					$user_data->first_name   = $user->first_name;
-					$user_data->last_name    = $user->last_name;
-					$user_data->display_name = $user->display_name;
-					$user_data->user_email   = $user->user_email;
-				} else {
-					$user_data->username = 'System';
+				if ( ! $user ) {
+					$user_data['username'] = 'System';
 				}
 			}
 
@@ -1345,7 +1417,7 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		}
 
 		/**
-		 * Returns the cache wp users.
+		 * Returns the cached wp users.
 		 *
 		 * @return array
 		 *
@@ -1353,73 +1425,6 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 */
 		public static function get_wp_users() {
 			return self::$wp_users;
-		}
-
-		/**
-		 * Get alert details.
-		 *
-		 * @param stdClass $entry   Raw entry from the occurrences table.
-		 * @param string   $context Display context.
-		 *
-		 * @return array|false Alert details.
-		 *
-		 * @since 4.5.0
-		 */
-		public static function get_alert_details( $entry, $context = 'default' ) {
-			$entry_id   = $entry->id;
-			$alert_id   = $entry->alert_id;
-			$site_id    = $entry->site_id;
-			$created_on = $entry->created_on;
-			$object     = $entry->object;
-			$event_type = $entry->event_type;
-			$user_id    = $entry->user_id;
-
-			$ip    = esc_html( $entry->ip );
-			$ua    = esc_html( $entry->ua );
-			$roles = maybe_unserialize( $entry->roles );
-			if ( is_string( $roles ) ) {
-				$roles = str_replace( array( '"', '[', ']' ), ' ', $roles );
-			}
-
-			$user_id = ( ! is_numeric( $user_id ) && null !== $user_id ) ? User_Utils::swap_login_for_id( $user_id ) : $user_id;
-
-			// Get alert details.
-			$code = Alert::get_alert( $alert_id );
-			$code = $code ? $code['severity'] : 0;
-
-			$blog_info = WP_Helper::get_blog_info( $site_id );
-
-			$event_metadata = Occurrences_Entity::get_meta_array( (int) $entry_id );
-
-			if ( ! $user_id ) {
-				$username = __( 'System', 'wp-security-audit-log' );
-				$roles    = '';
-			} else {
-				$username = User_Utils::get_username( $event_metadata );
-			}
-
-			// Meta details.
-			return array(
-				'site_id'    => (int) $site_id,
-				'blog_name'  => $blog_info['name'],
-				'blog_url'   => $blog_info['url'],
-				'alert_id'   => (int) $alert_id,
-				'date'       => DateTime_Formatter_Helper::get_formatted_date_time( $created_on ),
-				// We need to keep the timestamp to be able to group entries by dates etc. The "date" field is not suitable
-				// as it is already translated, thus difficult to parse and process.
-				'timestamp'  => $created_on,
-				'code'       => $code,
-				// Fill variables in message.
-				'message'    => Alert::get_message( $event_metadata, null, $alert_id, $entry_id, $context ),
-				'user_id'    => $user_id,
-				'user_name'  => $username,
-				'user_data'  => $user_id ? self::get_event_user_data( $username ) : false,
-				'role'       => $roles,
-				'user_ip'    => $ip,
-				'object'     => self::get_event_objects_data( $object ),
-				'event_type' => self::get_event_type_data( $event_type ),
-				'user_agent' => $ua,
-			);
 		}
 
 		/**
@@ -1457,16 +1462,10 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * @since 4.5.0
 		 */
 		public static function get_categorized_alerts( $sorted = true ) {
-			if ( empty( self::$alerts ) ) {
-				self::get_alerts();
-			}
 
 			$result = array();
-			if ( empty( self::$alerts ) ) {
-				self::get_alerts();
-			}
 
-			foreach ( self::$alerts as $alert ) {
+			foreach ( self::get_alerts() as $alert ) {
 				if ( ! isset( $result[ \html_entity_decode( $alert['category'] ) ] ) ) {
 					$result[ \html_entity_decode( $alert['category'] ) ] = array();
 				}
@@ -1494,12 +1493,9 @@ if ( ! class_exists( '\WSAL\Controllers\Alert_Manager' ) ) {
 		 * @since 4.5.0
 		 */
 		public static function get_alert_property( $alert_id, $property ) {
-			if ( empty( self::$alerts ) ) {
-				self::get_alerts();
-			}
 
-			if ( isset( self::$alerts[ $alert_id ] ) && isset( self::$alerts[ $alert_id ][ $property ] ) ) {
-				return self::$alerts[ $alert_id ][ $property ];
+			if ( isset( self::get_alerts()[ $alert_id ] ) && isset( self::get_alerts()[ $alert_id ][ $property ] ) ) {
+				return self::get_alerts()[ $alert_id ][ $property ];
 			}
 
 			return false;
